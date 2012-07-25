@@ -2,7 +2,7 @@
   "author": "Carlos Rodriguez <carlos@s8f.org> (http://s8f.org/)",
   "name": "hashcashgen",
   "description": "Simple module implementing the hashcash algorithm",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "devDependencies": {
     "mocha": "*",
     "idgen": "~1.0.2"
