@@ -20,5 +20,9 @@
   "license": "MIT",
   "engines": {
     "node": "*"
-  }
+  },
+  "dependencies": {
+    "optimist": "~0.3.4"
+  },
+  "bin": "./bin/generate.js"
 }
