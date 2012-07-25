@@ -1,0 +1,26 @@
+{
+  "author": "Carlos Rodriguez <carlos@s8f.org> (http://s8f.org/)",
+  "name": "hashcashgen",
+  "description": "Simple module implementing the hashcash algorithm",
+  "version": "0.0.0",
+  "dependencies": {
+    "idgen": "~1.0.2"
+  },
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "optionalDependencies": {},
+  "keywords": [
+    "hashcash",
+    "proof-of-work"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carlos8f/node-hashcashgen.git"
+  },
+  "homepage": "https://github.com/carlos8f/node-hashcashgen",
+  "license": "MIT",
+  "engines": {
+    "node": "*"
+  }
+}
