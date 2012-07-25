@@ -3,11 +3,9 @@
   "name": "hashcashgen",
   "description": "Simple module implementing the hashcash algorithm",
   "version": "0.0.0",
-  "dependencies": {
-    "idgen": "~1.0.2"
-  },
   "devDependencies": {
-    "mocha": "*"
+    "mocha": "*",
+    "idgen": "~1.0.2"
   },
   "optionalDependencies": {},
   "keywords": [

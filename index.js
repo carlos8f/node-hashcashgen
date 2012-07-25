@@ -1,5 +1,4 @@
 var crypto = require('crypto')
-  , idgen = require('idgen')
   , default_strength = 3
   , default_separator = ':'
   ;
@@ -9,11 +8,12 @@ module.exports = function generateHashCash(challenge, options) {
   options.strength || (options.strength = default_strength);
   options.search || (options.search = repeat('0', options.strength));
   options.separator || (options.separator = default_separator);
+  options.counter || (options.counter = 0);
   var attempt;
   do {
-    attempt = challenge + options.separator + idgen();
+    attempt = challenge + options.separator + options.counter++;
   }
-  while (sha1(attempt).indexOf(options.search) !== 0);
+  while (!module.exports.check(challenge, attempt, options.search));
   return attempt;
 };
 
@@ -25,8 +25,9 @@ module.exports.async = function generateHashCashAsync(challenge, options, cb) {
   options.strength || (options.strength = default_strength);
   options.search || (options.search = repeat('0', options.strength));
   options.separator || (options.separator = default_separator);
-  var attempt = challenge + options.separator + idgen();
-  if (sha1(attempt).indexOf(options.search) === 0) {
+  options.counter || (options.counter = 0);
+  var attempt = challenge + options.separator + options.counter++;
+  if (module.exports.check(challenge, attempt, options.search)) {
     cb(attempt);
   }
   else {
@@ -35,8 +36,14 @@ module.exports.async = function generateHashCashAsync(challenge, options, cb) {
 };
 
 module.exports.check = function checkHashCash(challenge, hashcash, strength) {
-  strength || (strength = default_strength);
-  var search = repeat('0', strength);
+  var search;
+  if (typeof strength === 'string') {
+    search = strength;
+  }
+  else {
+    strength || (strength = default_strength);
+    search = repeat('0', strength);
+  }
   return (hashcash.indexOf(challenge) === 0 && sha1(hashcash).indexOf(search) === 0);
 };
 
