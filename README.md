@@ -3,6 +3,8 @@ hashcashgen
 
 Simple module implementing the hashcash algorithm
 
+[![build status](https://secure.travis-ci.org/carlos8f/node-hashcashgen.png)](http://travis-ci.org/carlos8f/node-hashcashgen)
+
 Install
 =======
 
