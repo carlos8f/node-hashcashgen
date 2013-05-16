@@ -66,6 +66,6 @@ middler(server)
     next(new Error('cannot ' + req.method + ' ' + req.url));
   })
 
-server.listen(3000, function () {
+server.listen(0, function () {
   console.log('server listening on port ' + server.address().port);
 });
