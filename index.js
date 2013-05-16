@@ -3,7 +3,7 @@ var crypto = require('crypto')
   , default_separator = ':'
   ;
 
-module.exports = function generateHashCash(challenge, options) {
+module.exports = exports = function generateHashCash(challenge, options) {
   options || (options = {});
   options.strength || (options.strength = default_strength);
   options.search || (options.search = repeat('0', options.strength));
@@ -17,7 +17,7 @@ module.exports = function generateHashCash(challenge, options) {
   return attempt;
 };
 
-module.exports.async = function generateHashCashAsync(challenge, options, cb) {
+exports.async = function generateHashCashAsync(challenge, options, cb) {
   if (typeof options === 'function') {
     cb = options;
     options = {};
@@ -35,7 +35,7 @@ module.exports.async = function generateHashCashAsync(challenge, options, cb) {
   }
 };
 
-module.exports.check = function checkHashCash(challenge, hashcash, strength) {
+exports.check = function checkHashCash(challenge, hashcash, strength) {
   var search;
   if (typeof strength === 'string') {
     search = strength;
@@ -45,6 +45,11 @@ module.exports.check = function checkHashCash(challenge, hashcash, strength) {
     search = repeat('0', strength);
   }
   return (hashcash.indexOf(challenge) === 0 && sha1(hashcash).indexOf(search) === 0);
+};
+
+exports.middleware = function exportMiddleware(options) {
+  var dish = require('dish');
+  return dish.file(__dirname + '/browser/hashcashgen.js', options);
 };
 
 function repeat(input, length) {

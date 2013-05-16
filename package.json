@@ -5,7 +5,11 @@
   "version": "0.1.0",
   "devDependencies": {
     "mocha": "*",
-    "idgen": "~1.0.2"
+    "idgen": "~1.2.0",
+    "browserify": "~2.13.3",
+    "middler": "~0.6.1",
+    "zombie": "~2.0.0-alpha18",
+    "formidable": "~1.0.14"
   },
   "optionalDependencies": {},
   "keywords": [
@@ -22,7 +26,8 @@
     "node": "*"
   },
   "dependencies": {
-    "optimist": "~0.3.4"
+    "optimist": "~0.3.4",
+    "dish": "~0.1.2"
   },
   "bin": "./bin/generate.js"
 }
