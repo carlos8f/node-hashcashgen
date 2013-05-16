@@ -148,7 +148,7 @@ module.exports = exports = function generateHashCash (challenge, strength, cb) {
 
   function doAttempt () {
     attempt = challenge + separator + counter++;
-    return exports.check(challenge, strength, attempt) ? attempt : null;
+    return exports.check(challenge, strength, attempt, search) ? attempt : null;
   }
 
   if (cb) {
@@ -175,15 +175,15 @@ module.exports = exports = function generateHashCash (challenge, strength, cb) {
   }
 };
 
-exports.check = function checkHashCash (challenge, strength, hashcash) {
-  var search;
+exports.check = function checkHashCash (challenge, strength, hashcash, search) {
   if (typeof strength === 'string') {
-    search = strength;
+    hashcash = strength;
+    strength = default_strength;
   }
   else {
     strength || (strength = default_strength);
-    search = repeat('0', strength);
   }
+  if (!search) search = repeat('0', strength);
   return (hashcash.indexOf(challenge) === 0 && sha1(hashcash).indexOf(search) === 0);
 };
 
@@ -857,7 +857,7 @@ module.exports = function (data, headers, options) {
 
 // create a dish from a file path
 module.exports.file = require('./lib/file');
-},{"fs":8,"./lib/file":9,"./lib/dish":10}],11:[function(require,module,exports){
+},{"fs":8,"./lib/dish":9,"./lib/file":10}],11:[function(require,module,exports){
 require=(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
@@ -4722,7 +4722,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 },{}]},{},[])
 ;;module.exports=require("buffer-browserify")
 
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 (function(Buffer){var gzippable = require('./gzippable')
   , copy = require('./copy')
   , crypto = require('crypto')
@@ -4856,7 +4856,24 @@ Dish.prototype.serve = function (req, res, status) {
 module.exports = Dish;
 
 })(require("__browserify_buffer").Buffer)
-},{"crypto":1,"zlib":12,"./gzippable":13,"./copy":14,"__browserify_buffer":11}],12:[function(require,module,exports){
+},{"crypto":1,"zlib":12,"./gzippable":13,"./copy":14,"__browserify_buffer":11}],13:[function(require,module,exports){
+module.exports = function gzippable (type) {
+  type = type.split(';')[0];
+  if (/(^text\/|(json|xml)$|^application\/(javascript$))/.exec(type)) {
+    return true;
+  }
+};
+},{}],14:[function(require,module,exports){
+module.exports = function copy (orig) {
+  var n = {};
+  if (orig) {
+    Object.keys(orig).forEach(function (k) {
+      n[k] = orig[k];
+    });
+  }
+  return n;
+};
+},{}],12:[function(require,module,exports){
 (function(Buffer){const Zlib = module.exports = require('./zlib');
 
 // the least I can do is make error messages for the rest of the node.js/zlib api.
@@ -4901,24 +4918,7 @@ Zlib.gzip = function gzip(stringOrBuffer, callback) {
   return _gzip(Buffer(stringOrBuffer), callback);
 };
 })(require("__browserify_buffer").Buffer)
-},{"./zlib":15,"__browserify_buffer":11}],14:[function(require,module,exports){
-module.exports = function copy (orig) {
-  var n = {};
-  if (orig) {
-    Object.keys(orig).forEach(function (k) {
-      n[k] = orig[k];
-    });
-  }
-  return n;
-};
-},{}],13:[function(require,module,exports){
-module.exports = function gzippable (type) {
-  type = type.split(';')[0];
-  if (/(^text\/|(json|xml)$|^application\/(javascript$))/.exec(type)) {
-    return true;
-  }
-};
-},{}],15:[function(require,module,exports){
+},{"./zlib":15,"__browserify_buffer":11}],15:[function(require,module,exports){
 (function(process,Buffer){/** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 (function() {'use strict';function m(c){throw c;}var r=void 0,u=!0;var B="undefined"!==typeof Uint8Array&&"undefined"!==typeof Uint16Array&&"undefined"!==typeof Uint32Array;function aa(c){if("string"===typeof c){var a=c.split(""),b,e;b=0;for(e=a.length;b<e;b++)a[b]=(a[b].charCodeAt(0)&255)>>>0;c=a}for(var f=1,d=0,g=c.length,h,j=0;0<g;){h=1024<g?1024:g;g-=h;do f+=c[j++],d+=f;while(--h);f%=65521;d%=65521}return(d<<16|f)>>>0};function I(c,a){this.index="number"===typeof a?a:0;this.n=0;this.buffer=c instanceof(B?Uint8Array:Array)?c:new (B?Uint8Array:Array)(32768);2*this.buffer.length<=this.index&&m(Error("invalid index"));this.buffer.length<=this.index&&this.f()}I.prototype.f=function(){var c=this.buffer,a,b=c.length,e=new (B?Uint8Array:Array)(b<<1);if(B)e.set(c);else for(a=0;a<b;++a)e[a]=c[a];return this.buffer=e};
 I.prototype.d=function(c,a,b){var e=this.buffer,f=this.index,d=this.n,g=e[f],h;b&&1<a&&(c=8<a?(K[c&255]<<24|K[c>>>8&255]<<16|K[c>>>16&255]<<8|K[c>>>24&255])>>32-a:K[c]>>8-a);if(8>a+d)g=g<<a|c,d+=a;else for(h=0;h<a;++h)g=g<<1|c>>a-h-1&1,8===++d&&(d=0,e[f++]=K[g],g=0,f===e.length&&(e=this.f()));e[f]=g;this.buffer=e;this.n=d;this.index=f};I.prototype.finish=function(){var c=this.buffer,a=this.index,b;0<this.n&&(c[a]<<=8-this.n,c[a]=K[c[a]],a++);B?b=c.subarray(0,a):(c.length=a,b=c);return b};
@@ -4976,7 +4976,7 @@ function Db(c){var a=new Buffer(c.length),b,e;b=0;for(e=c.length;b<e;++b)a[b]=c[
 var Ib=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];B&&new Uint8Array(Ib);var Jb=new (B?Uint8Array:Array)(288),$,Kb;$=0;for(Kb=Jb.length;$<Kb;++$)Jb[$]=143>=$?8:255>=$?9:279>=$?7:8;T(Jb);var Lb=new (B?Uint8Array:Array)(30),Mb,Nb;Mb=0;for(Nb=Lb.length;Mb<Nb;++Mb)Lb[Mb]=5;T(Lb);var Ga=8;}).call(this);
 
 })(require("__browserify_process"),require("__browserify_buffer").Buffer)
-},{"__browserify_process":5,"__browserify_buffer":11}],9:[function(require,module,exports){
+},{"__browserify_process":5,"__browserify_buffer":11}],10:[function(require,module,exports){
 var Dish = require('./dish')
   , copy = require('./copy')
   , fs = require('fs')
@@ -5007,7 +5007,7 @@ module.exports = function (file, options) {
   var dish = new Dish(buf, options);
   return dish.serve.bind(dish);
 };
-},{"fs":8,"./dish":10,"./copy":14,"mime":16}],16:[function(require,module,exports){
+},{"fs":8,"./dish":9,"./copy":14,"mime":16}],16:[function(require,module,exports){
 (function(process,__dirname){var path = require('path');
 var fs = require('fs');
 
