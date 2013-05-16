@@ -3,6 +3,9 @@
   "name": "hashcashgen",
   "description": "Simple module implementing the hashcash algorithm",
   "version": "0.1.0",
+  "scripts": {
+    "test": "make test"
+  },
   "devDependencies": {
     "mocha": "*",
     "idgen": "~1.2.0",
