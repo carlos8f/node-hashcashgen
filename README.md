@@ -1,7 +1,7 @@
 hashcashgen
 -----------
 
-Simple module implementing the hashcash algorithm
+Simple javascript/node.js module implementing the [hashcash algorithm](http://en.wikipedia.org/wiki/Hashcash)
 
 [![build status](https://secure.travis-ci.org/carlos8f/node-hashcashgen.png)](http://travis-ci.org/carlos8f/node-hashcashgen)
 
@@ -20,7 +20,6 @@ var hashcashgen = require('hashcashgen')
   , challenge = require('idgen')()
   , hashcash = hashcashgen(challenge)
   , assert = require('assert')
-  ;
 
 assert(hashcashgen.check(challenge, hashcash));
 ```
@@ -46,6 +45,31 @@ hashcashgen.async(challenge, function(hashcash) {
   done();
 });
 ```
+
+Browser-side version (new!)
+---------------------------
+
+hashcashgen is usable in the browser thanks to [browserify](https://github.com/substack/node-browserify).
+
+Universal browser module is packaged in `./browser/hashcashgen.js`. Easily servable
+by your node server with this method:
+
+```js
+var hashcashgen = require('hashcashgen')
+  , express = require('express')
+
+var app = express();
+
+app.get('/js/hashcashgen.js', hashcashgen.middleware());
+```
+
+Then in your HTML:
+
+```html
+<script src="/js/hashcashgen.js"></script>
+```
+
+See `./test/server` for an example.
 
 License
 =======
