@@ -130,44 +130,52 @@ process.chdir = function (dir) {
 };
 
 },{}],6:[function(require,module,exports){
-(function(process,__dirname){var crypto = require('crypto')
+(function(process,global,__dirname){var crypto = require('crypto')
   , default_strength = 3
-  , default_separator = ':'
-  ;
 
-module.exports = exports = function generateHashCash(challenge, options) {
-  options || (options = {});
-  options.strength || (options.strength = default_strength);
-  options.search || (options.search = repeat('0', options.strength));
-  options.separator || (options.separator = default_separator);
-  options.counter || (options.counter = 0);
-  var attempt;
-  do {
-    attempt = challenge + options.separator + options.counter++;
+module.exports = exports = function generateHashCash (challenge, strength, cb) {
+  if (typeof strength === 'function') {
+    cb = strength;
+    strength = default_strength;
   }
-  while (!module.exports.check(challenge, attempt, options.search));
-  return attempt;
-};
+  else if (!strength) {
+    strength = default_strength;
+  }
+  var search = repeat('0', strength)
+    , separator = ':'
+    , counter = 0
+    , attempt
 
-exports.async = function generateHashCashAsync(challenge, options, cb) {
-  if (typeof options === 'function') {
-    cb = options;
-    options = {};
+  function doAttempt () {
+    attempt = challenge + separator + counter++;
+    return exports.check(challenge, strength, attempt) ? attempt : null;
   }
-  options.strength || (options.strength = default_strength);
-  options.search || (options.search = repeat('0', options.strength));
-  options.separator || (options.separator = default_separator);
-  options.counter || (options.counter = 0);
-  var attempt = challenge + options.separator + options.counter++;
-  if (module.exports.check(challenge, attempt, options.search)) {
-    cb(attempt);
+
+  if (cb) {
+    (function findHashcash () {
+      var ret = doAttempt();
+      if (ret) return cb(null, ret);
+      else {
+        if (global.setImmediate) {
+          setImmediate(findHashcash);
+        }
+        else {
+          process.nextTick(findHashcash);
+        }
+      }
+    })();
   }
   else {
-    process.nextTick(generateHashCashAsync.bind(null, challenge, options, cb));
+    var ret;
+    do {
+      ret = doAttempt();
+    }
+    while (!ret);
+    return ret;
   }
 };
 
-exports.check = function checkHashCash(challenge, hashcash, strength) {
+exports.check = function checkHashCash (challenge, strength, hashcash) {
   var search;
   if (typeof strength === 'string') {
     search = strength;
@@ -179,12 +187,12 @@ exports.check = function checkHashCash(challenge, hashcash, strength) {
   return (hashcash.indexOf(challenge) === 0 && sha1(hashcash).indexOf(search) === 0);
 };
 
-exports.middleware = function exportMiddleware(options) {
+exports.middleware = function exportMiddleware (options) {
   var dish = require('dish');
   return dish.file(__dirname + '/browser/hashcashgen.js', options);
 };
 
-function repeat(input, length) {
+function repeat (input, length) {
   var ret = '';
   for (var i = 0; i < length; i++) {
     ret += input;
@@ -192,13 +200,225 @@ function repeat(input, length) {
   return ret;
 }
 
-function sha1(input) {
+function sha1 (input) {
   return crypto.createHash('sha1')
     .update(input)
     .digest('hex');
 }
-})(require("__browserify_process"),"/")
-},{"crypto":1,"dish":7,"__browserify_process":5}],3:[function(require,module,exports){
+})(require("__browserify_process"),window,"/")
+},{"crypto":1,"dish":7,"__browserify_process":5}],2:[function(require,module,exports){
+/*
+ * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
+ * in FIPS PUB 180-1
+ * Version 2.1a Copyright Paul Johnston 2000 - 2002.
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ * Distributed under the BSD License
+ * See http://pajhome.org.uk/crypt/md5 for details.
+ */
+
+exports.hex_sha1 = hex_sha1;
+exports.b64_sha1 = b64_sha1;
+exports.str_sha1 = str_sha1;
+exports.hex_hmac_sha1 = hex_hmac_sha1;
+exports.b64_hmac_sha1 = b64_hmac_sha1;
+exports.str_hmac_sha1 = str_hmac_sha1;
+
+/*
+ * Configurable variables. You may need to tweak these to be compatible with
+ * the server-side, but the defaults work in most cases.
+ */
+var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
+var b64pad  = ""; /* base-64 pad character. "=" for strict RFC compliance   */
+var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
+
+/*
+ * These are the functions you'll usually want to call
+ * They take string arguments and return either hex or base-64 encoded strings
+ */
+function hex_sha1(s){return binb2hex(core_sha1(str2binb(s),s.length * chrsz));}
+function b64_sha1(s){return binb2b64(core_sha1(str2binb(s),s.length * chrsz));}
+function str_sha1(s){return binb2str(core_sha1(str2binb(s),s.length * chrsz));}
+function hex_hmac_sha1(key, data){ return binb2hex(core_hmac_sha1(key, data));}
+function b64_hmac_sha1(key, data){ return binb2b64(core_hmac_sha1(key, data));}
+function str_hmac_sha1(key, data){ return binb2str(core_hmac_sha1(key, data));}
+
+/*
+ * Perform a simple self-test to see if the VM is working
+ */
+function sha1_vm_test()
+{
+  return hex_sha1("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d";
+}
+
+/*
+ * Calculate the SHA-1 of an array of big-endian words, and a bit length
+ */
+function core_sha1(x, len)
+{
+  /* append padding */
+  x[len >> 5] |= 0x80 << (24 - len % 32);
+  x[((len + 64 >> 9) << 4) + 15] = len;
+
+  var w = Array(80);
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+  var e = -1009589776;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+    var olde = e;
+
+    for(var j = 0; j < 80; j++)
+    {
+      if(j < 16) w[j] = x[i + j];
+      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
+      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
+                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
+      e = d;
+      d = c;
+      c = rol(b, 30);
+      b = a;
+      a = t;
+    }
+
+    a = safe_add(a, olda);
+    b = safe_add(b, oldb);
+    c = safe_add(c, oldc);
+    d = safe_add(d, oldd);
+    e = safe_add(e, olde);
+  }
+  return Array(a, b, c, d, e);
+
+}
+
+/*
+ * Perform the appropriate triplet combination function for the current
+ * iteration
+ */
+function sha1_ft(t, b, c, d)
+{
+  if(t < 20) return (b & c) | ((~b) & d);
+  if(t < 40) return b ^ c ^ d;
+  if(t < 60) return (b & c) | (b & d) | (c & d);
+  return b ^ c ^ d;
+}
+
+/*
+ * Determine the appropriate additive constant for the current iteration
+ */
+function sha1_kt(t)
+{
+  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
+         (t < 60) ? -1894007588 : -899497514;
+}
+
+/*
+ * Calculate the HMAC-SHA1 of a key and some data
+ */
+function core_hmac_sha1(key, data)
+{
+  var bkey = str2binb(key);
+  if(bkey.length > 16) bkey = core_sha1(bkey, key.length * chrsz);
+
+  var ipad = Array(16), opad = Array(16);
+  for(var i = 0; i < 16; i++)
+  {
+    ipad[i] = bkey[i] ^ 0x36363636;
+    opad[i] = bkey[i] ^ 0x5C5C5C5C;
+  }
+
+  var hash = core_sha1(ipad.concat(str2binb(data)), 512 + data.length * chrsz);
+  return core_sha1(opad.concat(hash), 512 + 160);
+}
+
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally
+ * to work around bugs in some JS interpreters.
+ */
+function safe_add(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+}
+
+/*
+ * Bitwise rotate a 32-bit number to the left.
+ */
+function rol(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+}
+
+/*
+ * Convert an 8-bit or 16-bit string to an array of big-endian words
+ * In 8-bit function, characters >255 have their hi-byte silently ignored.
+ */
+function str2binb(str)
+{
+  var bin = Array();
+  var mask = (1 << chrsz) - 1;
+  for(var i = 0; i < str.length * chrsz; i += chrsz)
+    bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (32 - chrsz - i%32);
+  return bin;
+}
+
+/*
+ * Convert an array of big-endian words to a string
+ */
+function binb2str(bin)
+{
+  var str = "";
+  var mask = (1 << chrsz) - 1;
+  for(var i = 0; i < bin.length * 32; i += chrsz)
+    str += String.fromCharCode((bin[i>>5] >>> (32 - chrsz - i%32)) & mask);
+  return str;
+}
+
+/*
+ * Convert an array of big-endian words to a hex string.
+ */
+function binb2hex(binarray)
+{
+  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
+  var str = "";
+  for(var i = 0; i < binarray.length * 4; i++)
+  {
+    str += hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8+4)) & 0xF) +
+           hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8  )) & 0xF);
+  }
+  return str;
+}
+
+/*
+ * Convert an array of big-endian words to a base-64 string
+ */
+function binb2b64(binarray)
+{
+  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var str = "";
+  for(var i = 0; i < binarray.length * 4; i += 3)
+  {
+    var triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16)
+                | (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 )
+                |  ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
+    for(var j = 0; j < 4; j++)
+    {
+      if(i * 8 + j * 6 > binarray.length * 32) str += b64pad;
+      else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
+    }
+  }
+  return str;
+}
+
+
+},{}],3:[function(require,module,exports){
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
  * Digest Algorithm, as defined in RFC 1321.
@@ -584,218 +804,6 @@ exports.hex_md5 = hex_md5;
 exports.b64_md5 = b64_md5;
 exports.any_md5 = any_md5;
 
-},{}],2:[function(require,module,exports){
-/*
- * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
- * in FIPS PUB 180-1
- * Version 2.1a Copyright Paul Johnston 2000 - 2002.
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- * Distributed under the BSD License
- * See http://pajhome.org.uk/crypt/md5 for details.
- */
-
-exports.hex_sha1 = hex_sha1;
-exports.b64_sha1 = b64_sha1;
-exports.str_sha1 = str_sha1;
-exports.hex_hmac_sha1 = hex_hmac_sha1;
-exports.b64_hmac_sha1 = b64_hmac_sha1;
-exports.str_hmac_sha1 = str_hmac_sha1;
-
-/*
- * Configurable variables. You may need to tweak these to be compatible with
- * the server-side, but the defaults work in most cases.
- */
-var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
-var b64pad  = ""; /* base-64 pad character. "=" for strict RFC compliance   */
-var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
-
-/*
- * These are the functions you'll usually want to call
- * They take string arguments and return either hex or base-64 encoded strings
- */
-function hex_sha1(s){return binb2hex(core_sha1(str2binb(s),s.length * chrsz));}
-function b64_sha1(s){return binb2b64(core_sha1(str2binb(s),s.length * chrsz));}
-function str_sha1(s){return binb2str(core_sha1(str2binb(s),s.length * chrsz));}
-function hex_hmac_sha1(key, data){ return binb2hex(core_hmac_sha1(key, data));}
-function b64_hmac_sha1(key, data){ return binb2b64(core_hmac_sha1(key, data));}
-function str_hmac_sha1(key, data){ return binb2str(core_hmac_sha1(key, data));}
-
-/*
- * Perform a simple self-test to see if the VM is working
- */
-function sha1_vm_test()
-{
-  return hex_sha1("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d";
-}
-
-/*
- * Calculate the SHA-1 of an array of big-endian words, and a bit length
- */
-function core_sha1(x, len)
-{
-  /* append padding */
-  x[len >> 5] |= 0x80 << (24 - len % 32);
-  x[((len + 64 >> 9) << 4) + 15] = len;
-
-  var w = Array(80);
-  var a =  1732584193;
-  var b = -271733879;
-  var c = -1732584194;
-  var d =  271733878;
-  var e = -1009589776;
-
-  for(var i = 0; i < x.length; i += 16)
-  {
-    var olda = a;
-    var oldb = b;
-    var oldc = c;
-    var oldd = d;
-    var olde = e;
-
-    for(var j = 0; j < 80; j++)
-    {
-      if(j < 16) w[j] = x[i + j];
-      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
-      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
-                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
-      e = d;
-      d = c;
-      c = rol(b, 30);
-      b = a;
-      a = t;
-    }
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-    e = safe_add(e, olde);
-  }
-  return Array(a, b, c, d, e);
-
-}
-
-/*
- * Perform the appropriate triplet combination function for the current
- * iteration
- */
-function sha1_ft(t, b, c, d)
-{
-  if(t < 20) return (b & c) | ((~b) & d);
-  if(t < 40) return b ^ c ^ d;
-  if(t < 60) return (b & c) | (b & d) | (c & d);
-  return b ^ c ^ d;
-}
-
-/*
- * Determine the appropriate additive constant for the current iteration
- */
-function sha1_kt(t)
-{
-  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
-         (t < 60) ? -1894007588 : -899497514;
-}
-
-/*
- * Calculate the HMAC-SHA1 of a key and some data
- */
-function core_hmac_sha1(key, data)
-{
-  var bkey = str2binb(key);
-  if(bkey.length > 16) bkey = core_sha1(bkey, key.length * chrsz);
-
-  var ipad = Array(16), opad = Array(16);
-  for(var i = 0; i < 16; i++)
-  {
-    ipad[i] = bkey[i] ^ 0x36363636;
-    opad[i] = bkey[i] ^ 0x5C5C5C5C;
-  }
-
-  var hash = core_sha1(ipad.concat(str2binb(data)), 512 + data.length * chrsz);
-  return core_sha1(opad.concat(hash), 512 + 160);
-}
-
-/*
- * Add integers, wrapping at 2^32. This uses 16-bit operations internally
- * to work around bugs in some JS interpreters.
- */
-function safe_add(x, y)
-{
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-}
-
-/*
- * Bitwise rotate a 32-bit number to the left.
- */
-function rol(num, cnt)
-{
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-/*
- * Convert an 8-bit or 16-bit string to an array of big-endian words
- * In 8-bit function, characters >255 have their hi-byte silently ignored.
- */
-function str2binb(str)
-{
-  var bin = Array();
-  var mask = (1 << chrsz) - 1;
-  for(var i = 0; i < str.length * chrsz; i += chrsz)
-    bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (32 - chrsz - i%32);
-  return bin;
-}
-
-/*
- * Convert an array of big-endian words to a string
- */
-function binb2str(bin)
-{
-  var str = "";
-  var mask = (1 << chrsz) - 1;
-  for(var i = 0; i < bin.length * 32; i += chrsz)
-    str += String.fromCharCode((bin[i>>5] >>> (32 - chrsz - i%32)) & mask);
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a hex string.
- */
-function binb2hex(binarray)
-{
-  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
-  var str = "";
-  for(var i = 0; i < binarray.length * 4; i++)
-  {
-    str += hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8+4)) & 0xF) +
-           hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8  )) & 0xF);
-  }
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a base-64 string
- */
-function binb2b64(binarray)
-{
-  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  var str = "";
-  for(var i = 0; i < binarray.length * 4; i += 3)
-  {
-    var triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16)
-                | (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 )
-                |  ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
-    for(var j = 0; j < 4; j++)
-    {
-      if(i * 8 + j * 6 > binarray.length * 32) str += b64pad;
-      else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
-    }
-  }
-  return str;
-}
-
-
 },{}],4:[function(require,module,exports){
 // Original code adapted from Robert Kieffer.
 // details at https://github.com/broofa/node-uuid
@@ -849,7 +857,7 @@ module.exports = function (data, headers, options) {
 
 // create a dish from a file path
 module.exports.file = require('./lib/file');
-},{"fs":8,"./lib/dish":9,"./lib/file":10}],11:[function(require,module,exports){
+},{"fs":8,"./lib/file":9,"./lib/dish":10}],11:[function(require,module,exports){
 require=(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
@@ -4714,7 +4722,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 },{}]},{},[])
 ;;module.exports=require("buffer-browserify")
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 (function(Buffer){var gzippable = require('./gzippable')
   , copy = require('./copy')
   , crypto = require('crypto')
@@ -4848,24 +4856,7 @@ Dish.prototype.serve = function (req, res, status) {
 module.exports = Dish;
 
 })(require("__browserify_buffer").Buffer)
-},{"crypto":1,"zlib":12,"./gzippable":13,"./copy":14,"__browserify_buffer":11}],13:[function(require,module,exports){
-module.exports = function gzippable (type) {
-  type = type.split(';')[0];
-  if (/(^text\/|(json|xml)$|^application\/(javascript$))/.exec(type)) {
-    return true;
-  }
-};
-},{}],14:[function(require,module,exports){
-module.exports = function copy (orig) {
-  var n = {};
-  if (orig) {
-    Object.keys(orig).forEach(function (k) {
-      n[k] = orig[k];
-    });
-  }
-  return n;
-};
-},{}],12:[function(require,module,exports){
+},{"crypto":1,"zlib":12,"./gzippable":13,"./copy":14,"__browserify_buffer":11}],12:[function(require,module,exports){
 (function(Buffer){const Zlib = module.exports = require('./zlib');
 
 // the least I can do is make error messages for the rest of the node.js/zlib api.
@@ -4910,38 +4901,24 @@ Zlib.gzip = function gzip(stringOrBuffer, callback) {
   return _gzip(Buffer(stringOrBuffer), callback);
 };
 })(require("__browserify_buffer").Buffer)
-},{"./zlib":15,"__browserify_buffer":11}],10:[function(require,module,exports){
-var Dish = require('./dish')
-  , copy = require('./copy')
-  , fs = require('fs')
-  , mime = require('mime')
-
-// create a dish from a file path
-module.exports = function (file, options) {
-  var mimeType;
-  options = copy(options);
-  options.headers = copy(options.headers);
-
-  Object.keys(options.headers).forEach(function (k) {
-    if (k.toLowerCase() === 'content-type') {
-      mimeType = options.headers[k].split(';')[0];
-    }
-  });
-  // auto-detect mime type from file name
-  if (!mimeType) {
-    mimeType = mime.lookup(file, options.defaultContentType);
-    options.headers['Content-Type'] = mimeType;
+},{"./zlib":15,"__browserify_buffer":11}],14:[function(require,module,exports){
+module.exports = function copy (orig) {
+  var n = {};
+  if (orig) {
+    Object.keys(orig).forEach(function (k) {
+      n[k] = orig[k];
+    });
   }
-
-  var buf = fs.readFileSync(file);
-  var stat = fs.statSync(file);
-  options.headers['Last-Modified'] = stat.mtime.toUTCString();
-  options.headers['Content-Length'] = stat.size;
-
-  var dish = new Dish(buf, options);
-  return dish.serve.bind(dish);
+  return n;
 };
-},{"fs":8,"./copy":14,"./dish":9,"mime":16}],15:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
+module.exports = function gzippable (type) {
+  type = type.split(';')[0];
+  if (/(^text\/|(json|xml)$|^application\/(javascript$))/.exec(type)) {
+    return true;
+  }
+};
+},{}],15:[function(require,module,exports){
 (function(process,Buffer){/** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 (function() {'use strict';function m(c){throw c;}var r=void 0,u=!0;var B="undefined"!==typeof Uint8Array&&"undefined"!==typeof Uint16Array&&"undefined"!==typeof Uint32Array;function aa(c){if("string"===typeof c){var a=c.split(""),b,e;b=0;for(e=a.length;b<e;b++)a[b]=(a[b].charCodeAt(0)&255)>>>0;c=a}for(var f=1,d=0,g=c.length,h,j=0;0<g;){h=1024<g?1024:g;g-=h;do f+=c[j++],d+=f;while(--h);f%=65521;d%=65521}return(d<<16|f)>>>0};function I(c,a){this.index="number"===typeof a?a:0;this.n=0;this.buffer=c instanceof(B?Uint8Array:Array)?c:new (B?Uint8Array:Array)(32768);2*this.buffer.length<=this.index&&m(Error("invalid index"));this.buffer.length<=this.index&&this.f()}I.prototype.f=function(){var c=this.buffer,a,b=c.length,e=new (B?Uint8Array:Array)(b<<1);if(B)e.set(c);else for(a=0;a<b;++a)e[a]=c[a];return this.buffer=e};
 I.prototype.d=function(c,a,b){var e=this.buffer,f=this.index,d=this.n,g=e[f],h;b&&1<a&&(c=8<a?(K[c&255]<<24|K[c>>>8&255]<<16|K[c>>>16&255]<<8|K[c>>>24&255])>>32-a:K[c]>>8-a);if(8>a+d)g=g<<a|c,d+=a;else for(h=0;h<a;++h)g=g<<1|c>>a-h-1&1,8===++d&&(d=0,e[f++]=K[g],g=0,f===e.length&&(e=this.f()));e[f]=g;this.buffer=e;this.n=d;this.index=f};I.prototype.finish=function(){var c=this.buffer,a=this.index,b;0<this.n&&(c[a]<<=8-this.n,c[a]=K[c[a]],a++);B?b=c.subarray(0,a):(c.length=a,b=c);return b};
@@ -4999,7 +4976,38 @@ function Db(c){var a=new Buffer(c.length),b,e;b=0;for(e=c.length;b<e;++b)a[b]=c[
 var Ib=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];B&&new Uint8Array(Ib);var Jb=new (B?Uint8Array:Array)(288),$,Kb;$=0;for(Kb=Jb.length;$<Kb;++$)Jb[$]=143>=$?8:255>=$?9:279>=$?7:8;T(Jb);var Lb=new (B?Uint8Array:Array)(30),Mb,Nb;Mb=0;for(Nb=Lb.length;Mb<Nb;++Mb)Lb[Mb]=5;T(Lb);var Ga=8;}).call(this);
 
 })(require("__browserify_process"),require("__browserify_buffer").Buffer)
-},{"__browserify_process":5,"__browserify_buffer":11}],16:[function(require,module,exports){
+},{"__browserify_process":5,"__browserify_buffer":11}],9:[function(require,module,exports){
+var Dish = require('./dish')
+  , copy = require('./copy')
+  , fs = require('fs')
+  , mime = require('mime')
+
+// create a dish from a file path
+module.exports = function (file, options) {
+  var mimeType;
+  options = copy(options);
+  options.headers = copy(options.headers);
+
+  Object.keys(options.headers).forEach(function (k) {
+    if (k.toLowerCase() === 'content-type') {
+      mimeType = options.headers[k].split(';')[0];
+    }
+  });
+  // auto-detect mime type from file name
+  if (!mimeType) {
+    mimeType = mime.lookup(file, options.defaultContentType);
+    options.headers['Content-Type'] = mimeType;
+  }
+
+  var buf = fs.readFileSync(file);
+  var stat = fs.statSync(file);
+  options.headers['Last-Modified'] = stat.mtime.toUTCString();
+  options.headers['Content-Length'] = stat.size;
+
+  var dish = new Dish(buf, options);
+  return dish.serve.bind(dish);
+};
+},{"fs":8,"./dish":10,"./copy":14,"mime":16}],16:[function(require,module,exports){
 (function(process,__dirname){var path = require('path');
 var fs = require('fs');
 

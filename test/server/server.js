@@ -49,7 +49,7 @@ middler(server)
     if (!challenge || !(challenge in challenges) || challenges[challenge] !== false) {
       return next(new Error('invalid hashcash challenge!'));
     }
-    if (!hashcashgen.check(challenge, req.body.hashcash, 4)) {
+    if (!hashcashgen.check(challenge, 4, req.body.hashcash)) {
       return next(new Error('invalid hashcash!'));
     }
     //console.log('client sent valid hashcash: ' + req.body.hashcash);

@@ -16,7 +16,7 @@
     </form>
     <script>
     function setHashcash (challenge) {
-      var hashcash = hashcashgen(challenge, {strength: 4});
+      var hashcash = hashcashgen(challenge, 4);
       $('#signup-form input[name="hashcash"]').val(hashcash);
     }
     </script>
