@@ -52,7 +52,7 @@ exports.check = function checkHashCash (challenge, strength, hashcash, search) {
     strength || (strength = default_strength);
   }
   if (!search) search = repeat('0', strength);
-  return (hashcash.indexOf(challenge) === 0 && sha1(hashcash).indexOf(search) === 0);
+  return (hashcash.startsWith(challenge) && sha1(hashcash).startsWith(search));
 };
 
 function repeat (input, length) {
